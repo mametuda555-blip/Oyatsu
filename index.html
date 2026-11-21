@@ -43,13 +43,13 @@
       gap: 12px;
     }
     .form-group {
-      margin-bottom: 12px;
+      margin-bottom: 14px;
     }
     label {
       display: block;
       font-size: 0.85rem;
       font-weight: bold;
-      margin-bottom: 4px;
+      margin-bottom: 6px;
     }
     input, select {
       width: 100%;
@@ -59,7 +59,31 @@
       font-size: 1rem;
       box-sizing: border-box;
     }
-    button {
+    .mood-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .mood-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 7px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      background: #fff;
+      color: var(--text);
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.15s;
+    }
+    .mood-chip.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+      font-weight: bold;
+    }
+    button.main-btn {
       width: 100%;
       padding: 12px;
       background: var(--primary);
@@ -71,7 +95,7 @@
       cursor: pointer;
       margin-top: 8px;
     }
-    button:hover {
+    button.main-btn:hover {
       background: var(--primary-hover);
     }
     .metrics {
@@ -120,6 +144,7 @@
       align-items: center;
       padding: 10px 0;
       border-bottom: 1px solid #f3f4f6;
+      gap: 10px;
     }
     .snack-item:last-child {
       border-bottom: none;
@@ -127,6 +152,24 @@
     .snack-sub {
       font-size: 0.8rem;
       color: var(--muted);
+    }
+    .pfc-tag {
+      font-size: 0.75rem;
+      color: #4b5563;
+      margin-top: 2px;
+    }
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 4px;
+    }
+    .mini-tag {
+      font-size: 0.7rem;
+      background: #f3f4f6;
+      color: #4b5563;
+      padding: 2px 6px;
+      border-radius: 4px;
     }
     .badge {
       background: #fef3c7;
@@ -177,7 +220,20 @@
         </select>
       </div>
 
-      <button id="calcBtn">今日のおやつを探す</button>
+      <div class="form-group">
+        <label>今おやつに求めるもの（複数選択可・未選択ならすべて）</label>
+        <div id="moodGrid" class="mood-grid">
+          <span class="mood-chip" data-tag="甘いものが食べたい">甘いものが食べたい</span>
+          <span class="mood-chip" data-tag="しょっぱいものが食べたい">しょっぱいものが食べたい</span>
+          <span class="mood-chip" data-tag="たんぱく質を摂りたい">たんぱく質を摂りたい</span>
+          <span class="mood-chip" data-tag="ビタミンを摂りたい">ビタミンを摂りたい</span>
+          <span class="mood-chip" data-tag="ミネラルを摂りたい">ミネラルを摂りたい</span>
+          <span class="mood-chip" data-tag="集中したい">集中したい</span>
+          <span class="mood-chip" data-tag="疲れをとりたい">疲れをとりたい</span>
+        </div>
+      </div>
+
+      <button id="calcBtn" class="main-btn">今日のおやつを探す</button>
       <p id="errorMsg" class="error hidden"></p>
     </div>
 
@@ -201,12 +257,13 @@
         <div style="font-size: 0.85rem; color: #92400e;">今日のおすすめ</div>
         <div id="pickupName" class="pickup-name">-</div>
         <div id="pickupDetail" class="snack-sub">-</div>
-        <button id="rerollBtn" style="margin-top: 12px; width: auto; padding: 8px 16px; font-size: 0.9rem;">
+        <div id="pickupPfc" class="pfc-tag"></div>
+        <button id="rerollBtn" class="main-btn" style="margin-top: 12px; width: auto; padding: 8px 16px; font-size: 0.9rem;">
           他のおやつを抽選する
         </button>
       </div>
 
-      <h3 style="font-size: 1rem; margin: 16px 0 8px;">上限以内のおやつ候補（<span id="countVal">0</span>件）</h3>
+      <h3 style="font-size: 1rem; margin: 16px 0 8px;">条件に合うおやつ候補（<span id="countVal">0</span>件）</h3>
       <ul id="snackList" class="snack-list"></ul>
     </div>
   </div>
@@ -230,7 +287,13 @@
 
     let eligibleSnacks = [];
 
-    // 前回入力値の復元
+    // 求めるものチップの選択切り替え
+    document.querySelectorAll(".mood-chip").forEach(chip => {
+      chip.addEventListener("click", () => {
+        chip.classList.toggle("active");
+      });
+    });
+
     window.addEventListener("DOMContentLoaded", () => {
       const saved = JSON.parse(localStorage.getItem("snackToolProfile") || "{}");
       if (saved.height) document.getElementById("height").value = saved.height;
@@ -239,18 +302,31 @@
       if (saved.gender) document.getElementById("gender").value = saved.gender;
     });
 
-    // 国立健康・栄養研究所の式（Ganpuleの式）
     function calcBMR(height, weight, age, gender) {
       const constant = gender === "male" ? 0.4235 : 0.9708;
       return ((0.0481 * weight + 0.0234 * height - 0.0138 * age - constant) * 1000) / 4.186;
+    }
+
+    function formatDetail(item) {
+      if (item.kcalPer100g !== undefined) {
+        return `${item.servingLabel}（${item.kcalPer100g} kcal/100g）`;
+      }
+      return item.servingLabel;
+    }
+
+    function formatPfc(item) {
+      if (item.protein !== undefined && item.fat !== undefined && item.carbs !== undefined) {
+        return `P: ${item.protein}g / F: ${item.fat}g / C: ${item.carbs}g`;
+      }
+      return "";
     }
 
     function showPickup() {
       if (eligibleSnacks.length === 0) return;
       const pick = eligibleSnacks[Math.floor(Math.random() * eligibleSnacks.length)];
       document.getElementById("pickupName").textContent = pick.name;
-      document.getElementById("pickupDetail").textContent =
-        `${pick.servingLabel} / ${pick.servingKcal} kcal（食品成分表: ${pick.kcalPer100g} kcal / 100g）`;
+      document.getElementById("pickupDetail").textContent = `${pick.servingKcal} kcal / ${formatDetail(pick)}`;
+      document.getElementById("pickupPfc").textContent = formatPfc(pick);
     }
 
     document.getElementById("calcBtn").addEventListener("click", async () => {
@@ -259,6 +335,8 @@
       const age = parseFloat(document.getElementById("age").value);
       const gender = document.getElementById("gender").value;
       const factor = parseFloat(document.getElementById("activity").value);
+      const selectedTags = Array.from(document.querySelectorAll(".mood-chip.active"))
+        .map(el => el.dataset.tag);
       const errorMsg = document.getElementById("errorMsg");
 
       if (!height || !weight || !age) {
@@ -268,7 +346,6 @@
       }
       errorMsg.classList.add("hidden");
 
-      // プロフィール保存
       localStorage.setItem("snackToolProfile", JSON.stringify({ height, weight, age, gender }));
 
       const bmr = calcBMR(height, weight, age, gender);
@@ -290,9 +367,16 @@
         eligibleSnacks = snackArray
           .map(item => ({
             ...item,
-            servingKcal: Math.round((item.kcalPer100g * item.servingG) / 100)
+            tags: Array.isArray(item.tags) ? item.tags : [],
+            servingKcal: item.servingKcal !== undefined
+              ? item.servingKcal
+              : Math.round((item.kcalPer100g * item.servingG) / 100)
           }))
-          .filter(item => item.servingKcal <= snackLimit)
+          .filter(item => {
+            if (item.servingKcal > snackLimit) return false;
+            if (selectedTags.length === 0) return true;
+            return selectedTags.some(tag => item.tags.includes(tag));
+          })
           .sort((a, b) => b.servingKcal - a.servingKcal);
 
         document.getElementById("countVal").textContent = eligibleSnacks.length;
@@ -301,16 +385,21 @@
 
         if (eligibleSnacks.length === 0) {
           document.getElementById("pickupName").textContent = "該当なし";
-          document.getElementById("pickupDetail").textContent = "上限カロリー以内のおやつがありませんでした。";
+          document.getElementById("pickupDetail").textContent = "条件に合うおやつがありませんでした。選択を変えてお試しください。";
+          document.getElementById("pickupPfc").textContent = "";
         } else {
           showPickup();
           eligibleSnacks.forEach(item => {
+            const pfcText = formatPfc(item);
+            const tagsHtml = item.tags.map(t => `<span class="mini-tag">${t}</span>`).join("");
             const li = document.createElement("li");
             li.className = "snack-item";
             li.innerHTML = `
               <div>
                 <div><strong>${item.name}</strong></div>
-                <div class="snack-sub">${item.servingLabel}（${item.kcalPer100g} kcal/100g）</div>
+                <div class="snack-sub">${formatDetail(item)}</div>
+                ${pfcText ? `<div class="pfc-tag">${pfcText}</div>` : ""}
+                ${tagsHtml ? `<div class="tag-row">${tagsHtml}</div>` : ""}
               </div>
               <span class="badge">${item.servingKcal} kcal</span>
             `;
