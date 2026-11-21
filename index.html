@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>今日のおやつレコメンド</title>
+  <style>
+    :root {
+      --primary: #d97706;
+      --primary-hover: #b45309;
+      --bg: #fefce8;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    .container {
+      max-width: 540px;
+      margin: 0 auto;
+    }
+    h1 {
+      text-align: center;
+      font-size: 1.5rem;
+      margin-bottom: 20px;
+    }
+    .card {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      margin-bottom: 16px;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .form-group {
+      margin-bottom: 12px;
+    }
+    label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+    input, select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 1rem;
+      box-sizing: border-box;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    button:hover {
+      background: var(--primary-hover);
+    }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    .metric-box {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 8px;
+      padding: 10px 4px;
+    }
+    .metric-label {
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+    .metric-value {
+      font-size: 1.15rem;
+      font-weight: bold;
+      color: var(--primary-hover);
+    }
+    .pickup {
+      border: 2px solid var(--primary);
+      background: #fffbeb;
+      border-radius: 10px;
+      padding: 16px;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    .pickup-name {
+      font-size: 1.4rem;
+      font-weight: bold;
+      margin: 6px 0;
+    }
+    .snack-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .snack-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    .snack-item:last-child {
+      border-bottom: none;
+    }
+    .snack-sub {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .badge {
+      background: #fef3c7;
+      color: #92400e;
+      font-weight: bold;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      white-space: nowrap;
+    }
+    .hidden { display: none; }
+    .error { color: #dc2626; font-size: 0.9rem; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>今日のおやつレコメンド</h1>
+
+    <div class="card">
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="height">身長 (cm)</label>
+          <input type="number" id="height" placeholder="170" step="0.1" required>
+        </div>
+        <div class="form-group">
+          <label for="weight">体重 (kg)</label>
+          <input type="number" id="weight" placeholder="60" step="0.1" required>
+        </div>
+        <div class="form-group">
+          <label for="age">年齢 (歳)</label>
+          <input type="number" id="age" value="30" required>
+        </div>
+        <div class="form-group">
+          <label for="gender">性別</label>
+          <select id="gender">
+            <option value="male">男性</option>
+            <option value="female">女性</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="activity">今日の身体活動レベル</label>
+        <select id="activity">
+          <option value="1.5">1：低い（デスクワーク中心 / ×1.5）</option>
+          <option value="1.75" selected>2：ふつう（通勤・立ち仕事・軽い運動 / ×1.75）</option>
+          <option value="2.0">3：高い（活発な運動・肉体労働 / ×2.0）</option>
+        </select>
+      </div>
+
+      <button id="calcBtn">今日のおやつを探す</button>
+      <p id="errorMsg" class="error hidden"></p>
+    </div>
+
+    <div id="resultSection" class="card hidden">
+      <div class="metrics">
+        <div class="metric-box">
+          <div class="metric-label">基礎代謝</div>
+          <div class="metric-value"><span id="bmrVal">-</span> kcal</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-label">必要エネルギー</div>
+          <div class="metric-value"><span id="tdeeVal">-</span> kcal</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-label">おやつ上限(10%)</div>
+          <div class="metric-value"><span id="limitVal">-</span> kcal</div>
+        </div>
+      </div>
+
+      <div id="pickupBox" class="pickup">
+        <div style="font-size: 0.85rem; color: #92400e;">今日のおすすめ</div>
+        <div id="pickupName" class="pickup-name">-</div>
+        <div id="pickupDetail" class="snack-sub">-</div>
+        <button id="rerollBtn" style="margin-top: 12px; width: auto; padding: 8px 16px; font-size: 0.9rem;">
+          他のおやつを抽選する
+        </button>
+      </div>
+
+      <h3 style="font-size: 1rem; margin: 16px 0 8px;">上限以内のおやつ候補（<span id="countVal">0</span>件）</h3>
+      <ul id="snackList" class="snack-list"></ul>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDv7JqFT5447ZMoo_5Kwt3u76Iv1E9X2xg",
+      authDomain: "oyatsu-6a259.firebaseapp.com",
+      databaseURL: "https://oyatsu-6a259-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "oyatsu-6a259",
+      storageBucket: "oyatsu-6a259.firebasestorage.app",
+      messagingSenderId: "611130705000",
+      appId: "1:611130705000:web:a9829f6cae8d6bc68f27dd"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    let eligibleSnacks = [];
+
+    // 前回入力値の復元
+    window.addEventListener("DOMContentLoaded", () => {
+      const saved = JSON.parse(localStorage.getItem("snackToolProfile") || "{}");
+      if (saved.height) document.getElementById("height").value = saved.height;
+      if (saved.weight) document.getElementById("weight").value = saved.weight;
+      if (saved.age) document.getElementById("age").value = saved.age;
+      if (saved.gender) document.getElementById("gender").value = saved.gender;
+    });
+
+    // 国立健康・栄養研究所の式（Ganpuleの式）
+    function calcBMR(height, weight, age, gender) {
+      const constant = gender === "male" ? 0.4235 : 0.9708;
+      return ((0.0481 * weight + 0.0234 * height - 0.0138 * age - constant) * 1000) / 4.186;
+    }
+
+    function showPickup() {
+      if (eligibleSnacks.length === 0) return;
+      const pick = eligibleSnacks[Math.floor(Math.random() * eligibleSnacks.length)];
+      document.getElementById("pickupName").textContent = pick.name;
+      document.getElementById("pickupDetail").textContent =
+        `${pick.servingLabel} / ${pick.servingKcal} kcal（食品成分表: ${pick.kcalPer100g} kcal / 100g）`;
+    }
+
+    document.getElementById("calcBtn").addEventListener("click", async () => {
+      const height = parseFloat(document.getElementById("height").value);
+      const weight = parseFloat(document.getElementById("weight").value);
+      const age = parseFloat(document.getElementById("age").value);
+      const gender = document.getElementById("gender").value;
+      const factor = parseFloat(document.getElementById("activity").value);
+      const errorMsg = document.getElementById("errorMsg");
+
+      if (!height || !weight || !age) {
+        errorMsg.textContent = "身長・体重・年齢をすべて入力してください。";
+        errorMsg.classList.remove("hidden");
+        return;
+      }
+      errorMsg.classList.add("hidden");
+
+      // プロフィール保存
+      localStorage.setItem("snackToolProfile", JSON.stringify({ height, weight, age, gender }));
+
+      const bmr = calcBMR(height, weight, age, gender);
+      const tdee = bmr * factor;
+      const snackLimit = Math.floor(tdee * 0.10);
+
+      document.getElementById("bmrVal").textContent = Math.round(bmr);
+      document.getElementById("tdeeVal").textContent = Math.round(tdee);
+      document.getElementById("limitVal").textContent = snackLimit;
+
+      try {
+        const snapshot = await get(ref(db, "snacks"));
+        if (!snapshot.exists()) {
+          throw new Error("Firebaseにsnacksデータが見つかりません。");
+        }
+        const rawData = snapshot.val();
+        const snackArray = Array.isArray(rawData) ? rawData : Object.values(rawData);
+
+        eligibleSnacks = snackArray
+          .map(item => ({
+            ...item,
+            servingKcal: Math.round((item.kcalPer100g * item.servingG) / 100)
+          }))
+          .filter(item => item.servingKcal <= snackLimit)
+          .sort((a, b) => b.servingKcal - a.servingKcal);
+
+        document.getElementById("countVal").textContent = eligibleSnacks.length;
+        const listEl = document.getElementById("snackList");
+        listEl.innerHTML = "";
+
+        if (eligibleSnacks.length === 0) {
+          document.getElementById("pickupName").textContent = "該当なし";
+          document.getElementById("pickupDetail").textContent = "上限カロリー以内のおやつがありませんでした。";
+        } else {
+          showPickup();
+          eligibleSnacks.forEach(item => {
+            const li = document.createElement("li");
+            li.className = "snack-item";
+            li.innerHTML = `
+              <div>
+                <div><strong>${item.name}</strong></div>
+                <div class="snack-sub">${item.servingLabel}（${item.kcalPer100g} kcal/100g）</div>
+              </div>
+              <span class="badge">${item.servingKcal} kcal</span>
+            `;
+            listEl.appendChild(li);
+          });
+        }
+
+        document.getElementById("resultSection").classList.remove("hidden");
+      } catch (err) {
+        errorMsg.textContent = "データ取得エラー: " + err.message;
+        errorMsg.classList.remove("hidden");
+      }
+    });
+
+    document.getElementById("rerollBtn").addEventListener("click", showPickup);
+  </script>
+</body>
+</html>
